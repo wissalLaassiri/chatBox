@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Customer side </title>
+	<link rel="stylesheet" href="./css/style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://code.jquery.com/jquery-3.3.1.slim.min.js">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="./js/main.js"></script>
+</head>
+
+<body>
+	<div id='whatsapp-chat' class='hide'>
+		<div class='header-chat'>
+			<div class='head-home'>
+				<h3>Hello!</h3>
+				<p>You are talking to <strong><%= user.prenom_user %></strong></p>
+			</div>
+		</div>
+		<div class='start-chat '>
+			<div class='first-msg'><span id="hey">Hello! What can I do for you?</span></div>
+			<div class='sent' id="sent"></div>
+			<div class='messages' id="messages"></div>
+			<div id='typing'></div>
+			<!--				<div class="col-sm-6 no-gutters"><input id="handle" type="text" placeholder="Handle" /></div>
+			-->
+			<form id="messageForm" action="">
+				<div class='blanter-msg'>
+					<input id="m" autocomplete="off" class="form-control rounded-0 border-0 py-4 bg-light" />
+					<button class="btn btn-link"><i class="fa fa-paper-plane"></i></button>
+				</div>
+			</form>
+		</div>
+		<div id='get-number'></div><a class='close-chat' href='javascript:void'>×</a>
+	</div>
+	<a class='blantershow-chat' href='javascript:void' title='Show Chat'><i class='fab fa-whatsapp'></i>How can I
+		help
+		you?</a>
+	<script>
+		$('.messages').hide();
+		$('.sent').hide();
+		$('#typing').hide();
+		let typing = false,
+			timeout = undefined;
+		$(function () {
+			let socket = io.connect('http://127.0.0.1:3000');
+
+			socket.on("message", function (data) {
+				console.log(data.msg);
+			});
+
+			function typingTimeout() {
+				typing = false;
+			}
+
+			$("#messageForm").keyup(function (e) {
+				$('#typing').show();
+				if (e.keyCode != 13) {
+					typing = true;
+					socket.emit('typing', {
+						typing: true
+					});
+					clearTimeout(timeout);
+					timeout = setTimeout(typingTimeout, 3000);
+				} else {
+					clearTimeout(timeout);
+					typingTimeout();
+					$('#typing').hide();
+				}
+			});
+
+			socket.on('display', (data) => {
+				$('#typing').text(`is typing...`);
+			});
+
+			$('#messageForm').submit(function (e) {
+				const input = $('#m').val();
+				$('.sent').show();
+				const type = "customer";
+				socket.emit('set nickname2', type);
+				e.preventDefault(); // prevents page reloading
+				if ($('#m').val().length > 0) {
+					socket.emit('chat message', {
+						msg: $('#m').val()
+					});
+				}
+				$('#m').val('');
+			});
+			socket.on('stop client', ({
+				msg
+			}) => {
+				socket.emit('connection');
+
+				$('.messages').show();
+				$('#messages').append($(
+					'<div class="first-msg" ><span >We cant answer you for the moment can u wait a few minutes please!</span></div>'
+				));
+				socket.emit('close connection');
+
+			});
+
+			socket.on('chat message', function (data) {
+				let msg = data.msg;
+				let classe = data.classe;
+				$('.messages').show();
+				if (msg.length > 0) {
+					$('#messages').append($('<div class="' + classe + '" ><span >' +
+						msg + '</span></div>'));
+				}
+			});
+		});
+	</script>
+</body>
+
+</html>

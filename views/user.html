@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>User side</title>
+	<link rel="stylesheet" href="./css/style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://code.jquery.com/jquery-3.3.1.slim.min.js">
+	<link rel="stylesheet"
+		href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="./js/main.js"></script>
+</head>
+
+<body>
+	<div class="container py-5 px-4">
+
+		<div class="row rounded-lg overflow-hidden shadow">
+			<!-- Users box-->
+			<div class="col-5 px-0">
+				<div class="bg-white">
+					<div class="bg-gray px-4 py-2 bg-light">
+						<form id="close conversation" action="">
+							<p><strong>username: <%= user.prenom_user %></strong>
+								<button type="button" id="button" class="btn btn-primary"> Close Conversation</button>
+							</p>
+						</form>
+						<p class="h5 mb-0 py-1">Recent</p>
+					</div>
+
+					<div class="messages-box">
+						<div class="list-group rounded-0">
+							<a class="list-group-item list-group-item-action active text-white rounded-0">
+								<div class="media">
+									<div class="media-body ml-4">
+										<div class="d-flex align-items-center justify-content-between mb-1">
+											<h6 class="mb-0">Customer</h6><small class="small font-weight-bold">25
+												Dec</small>
+										</div>
+										<div id="last_msg"></div>
+									</div>
+								</div>
+							</a>
+
+							<a href="#" class="list-group-item list-group-item-action list-group-item-light rounded-0">
+								<div class="media">
+									<div class="media-body ml-4">
+										<div class="d-flex align-items-center justify-content-between mb-1">
+											<h6 class="mb-0">Customer</h6><small class="small font-weight-bold">14
+												Dec</small>
+										</div>
+										<p class="font-italic text-muted mb-0 text-small">Lorem ipsum dolor sit amet,
+											consectetur. incididunt ut labore.</p>
+									</div>
+								</div>
+							</a>
+
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- Chat Box-->
+			<div class="col-7 px-0">
+				<div class="px-4 py-5 chat-box bg-white">
+					<!-- conversation ending Message-->
+					<div id="closed"></div>
+
+					<!-- Sender Message-->
+					<div class="messages" id="messages">
+					</div>
+
+					<!-- is typing Message -->
+					<div id="typing"></div>
+
+
+				</div>
+				<!-- Typing area
+					<div class="col-sm-6 no-gutters"><input id="handle" type="text" placeholder="Handle" /></div>
+				 -->
+				<form id="messageForm" action="" class="bg-light">
+					<div class="input-group">
+						<input id="m" autocomplete="off" class="form-control rounded-0 border-0 py-4 bg-light" />
+						<button class="btn btn-link" type='submit'><i class="fa fa-paper-plane"></i></button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+
+
+
+	<script>
+		$('.messages').hide();
+		$('#typing').hide();
+		let $chat = $('#messages');
+		let d = new Date();
+		let input, typing = false,
+			timeout = undefined;
+		$(function () {
+			let socket = io.connect('http://127.0.0.1:3000');
+			let message = $('#messageForm');
+
+			function typingTimeout() {
+				typing = false;
+			}
+			$("#messageForm").keyup(function (e) {
+				$('#typing').show();
+				if ((e.keyCode != 13) && (e.which != 13)) {
+					typing = true;
+					socket.emit('typing', {
+						typing: true
+					});
+					clearTimeout(timeout);
+					timeout = setTimeout(typingTimeout, 3000);
+				} else {
+					clearTimeout(timeout);
+					typingTimeout();
+					$('#typing').hide();
+				}
+			});
+			socket.on('display', (data) => {
+				if (data.typing == true) {
+					$('#typing').text(`is typing...`);
+				} else {
+					$('#typing').text("");
+				}
+			});
+
+			$('#messageForm').submit(function (e) {
+				input = $('#m').val();
+				const type = "user";
+				socket.emit('set nickname', type);
+				$('.send').show();
+				e.preventDefault(); // prevents page reloading
+				if ($('#m').val().length > 0) {
+					socket.emit('chat message', {
+						msg: $('#m').val()
+					});
+				}
+				$('#m').val('');
+			});
+			$('#button').on("click", function (e) {
+				$('#closed').append($(
+					'<div class="d-flex align-items-center justify-content-between mb-1"><h6 class="mb-0">Conversation terminée</h6></div>'
+				))
+				$('.messages').hide();
+				$('#messages').empty();
+				e.preventDefault(); // prevents page reloading
+				socket.emit('close conversation');
+			});
+
+
+			socket.on('chat message', function (data) {
+				let msg = data.msg;
+				socket.emit('inputbox', msg);
+				$('.messages').show();
+				$('#last_msg').empty();
+				if (msg) {
+					$chat.append($(
+						'<div class="' + data.classe2 + '"><span>' +
+						msg + '</span>'));
+					$('#last_msg').append($('<p class="font-italic mb-0 text-small">' + data.lastMsg +
+						'</p>'));
+				}
+				//	document.getElementById("demo").innerHTML = d.toUTCString();
+				//	document.getElementById("demo2").innerHTML = d.toUTCString();
+
+			});
+		});
+	</script>
+</body>
+
+</html>
